@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 type WeeklyTargetRow = {
   target_quantity: number | null;
   store_id: string;
+  week_start_date: string;
   stores: {
     store_name: string;
   } | null;
@@ -49,7 +50,7 @@ export default async function ReportsPage() {
 
   const { data: weeklyTargets, error: weeklyTargetsError } = await supabase
     .from("weekly_targets")
-    .select("store_id, target_quantity, stores(store_name)")
+    .select("store_id, week_start_date, target_quantity, stores(store_name)")
     .eq("week_start_date", weekStart);
 
   const { data: dailySales, error: dailySalesError } = await supabase
@@ -64,26 +65,31 @@ export default async function ReportsPage() {
     string,
     {
       storeName: string;
+      weekStart: string;
       targetQty: number;
       achievedQty: number;
     }
   >();
 
   for (const row of (weeklyTargets ?? []) as WeeklyTargetRow[]) {
-    const existing = summaryMap.get(row.store_id);
+    const summaryKey = `${row.store_id}:${row.week_start_date}`;
+    const existing = summaryMap.get(summaryKey);
 
-    summaryMap.set(row.store_id, {
+    summaryMap.set(summaryKey, {
       storeName: row.stores?.store_name ?? existing?.storeName ?? "Unknown Store",
+      weekStart: row.week_start_date,
       targetQty: (existing?.targetQty ?? 0) + Number(row.target_quantity ?? 0),
       achievedQty: existing?.achievedQty ?? 0,
     });
   }
 
   for (const row of (dailySales ?? []) as DailySalesRow[]) {
-    const existing = summaryMap.get(row.store_id);
+    const summaryKey = `${row.store_id}:${weekStart}`;
+    const existing = summaryMap.get(summaryKey);
 
-    summaryMap.set(row.store_id, {
+    summaryMap.set(summaryKey, {
       storeName: existing?.storeName ?? "Unknown Store",
+      weekStart: existing?.weekStart ?? weekStart,
       targetQty: existing?.targetQty ?? 0,
       achievedQty: (existing?.achievedQty ?? 0) + Number(row.quantity_sold ?? 0),
     });
@@ -106,11 +112,11 @@ export default async function ReportsPage() {
           Reports
         </p>
         <h2 className="text-3xl font-semibold tracking-tight text-slate-950">
-          Store-wise weekly summary
+          Store-wise weekly performance
         </h2>
         <p className="max-w-2xl text-sm leading-7 text-slate-600">
-          This table loads the current week&apos;s target and achieved quantity
-          from Supabase and groups the result by store.
+          This table loads the current week&apos;s targets and sales from
+          Supabase, then groups them into one row per store for the week.
         </p>
         <p className="text-sm text-slate-500">
           Week: {weekStart} to {weekEnd}
@@ -138,6 +144,9 @@ export default async function ReportsPage() {
                   Store name
                 </th>
                 <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 sm:px-6">
+                  Week start
+                </th>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 sm:px-6">
                   Target qty
                 </th>
                 <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 sm:px-6">
@@ -151,9 +160,12 @@ export default async function ReportsPage() {
             <tbody className="divide-y divide-slate-100 bg-white">
               {storeSummaries.length > 0 ? (
                 storeSummaries.map((store) => (
-                  <tr key={store.storeName}>
+                  <tr key={`${store.storeName}-${store.weekStart}`}>
                     <td className="px-5 py-4 text-sm font-semibold text-slate-950 sm:px-6">
                       {store.storeName}
+                    </td>
+                    <td className="px-5 py-4 text-sm text-slate-600 sm:px-6">
+                      {store.weekStart}
                     </td>
                     <td className="px-5 py-4 text-sm text-slate-600 sm:px-6">
                       {store.targetQty}
@@ -169,7 +181,7 @@ export default async function ReportsPage() {
               ) : (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={5}
                     className="px-5 py-8 text-center text-sm text-slate-500 sm:px-6"
                   >
                     No weekly report data found for this week.
