@@ -6,9 +6,11 @@ type WeeklyTargetRow = {
   store_id: string;
   week_start_date: string;
   target_quantity: number;
-  stores: {
-    store_name: string;
-  }[];
+  stores:
+    | {
+        store_name: string;
+      }[]
+    | null;
 };
 
 type DailySalesRow = {
@@ -76,7 +78,8 @@ export default async function ReportsPage() {
     const existing = summaryMap.get(summaryKey);
 
     summaryMap.set(summaryKey, {
-      storeName: row.stores?.store_name ?? existing?.storeName ?? "Unknown Store",
+      storeName:
+        row.stores?.[0]?.store_name ?? existing?.storeName ?? "Unknown Store",
       weekStart: row.week_start_date,
       targetQty: (existing?.targetQty ?? 0) + Number(row.target_quantity ?? 0),
       achievedQty: existing?.achievedQty ?? 0,
