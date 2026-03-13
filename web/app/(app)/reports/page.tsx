@@ -3,12 +3,12 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 type WeeklyTargetRow = {
-  target_quantity: number | null;
   store_id: string;
   week_start_date: string;
+  target_quantity: number;
   stores: {
     store_name: string;
-  } | null;
+  }[];
 };
 
 type DailySalesRow = {
